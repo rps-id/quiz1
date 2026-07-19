@@ -167,6 +167,19 @@
 
         var usageCount = loadUsage();
 
+        // Buat "tanda tangan" dari daftar soal saat ini. Kalau daftar validNumbers
+        // diubah (soal baru untuk kelas lain), tanda tangan ini otomatis berubah,
+        // sehingga kuota lama otomatis dihapus tanpa perlu klik reset manual.
+        var SIGNATURE_KEY = 'inputValidationSignature';
+        var currentSignature = validNumbers.join(',');
+        var savedSignature = localStorage.getItem(SIGNATURE_KEY);
+
+        if (savedSignature !== currentSignature) {
+            usageCount = {};
+            saveUsage(usageCount);
+            localStorage.setItem(SIGNATURE_KEY, currentSignature);
+        }
+
         function appendNumber(number) {
             var input = document.getElementById('userInput');
             input.value += number;
@@ -233,6 +246,7 @@
             if (pwd === resetPassword) {
                 usageCount = {};
                 saveUsage(usageCount);
+                localStorage.setItem(SIGNATURE_KEY, currentSignature);
                 clearInput();
                 closeResetOverlay();
                 showMessage('Kuota berhasil direset', 'success', 2500);
