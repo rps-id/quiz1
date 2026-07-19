@@ -45,6 +45,10 @@
             background-color: #e26a00;
             color: white;
         }
+        .btn-reset {
+            margin-top: 15px;
+            width: 219px;
+        }
         .message {
             margin-top: 20px;
             padding: 10px;
@@ -58,6 +62,36 @@
         .error {
             background-color: #dc3545;
             color: white;
+        }
+        .quota {
+            background-color: #ffc107;
+            color: #212529;
+        }
+        .overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.5);
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        .overlay.show {
+            display: flex;
+        }
+        .reset-box {
+            background: #fff;
+            padding: 25px;
+            border-radius: 10px;
+            width: 280px;
+            text-align: center;
+            box-shadow: 0 0 20px rgba(0,0,0,0.3);
+        }
+        .reset-box input {
+            margin: 15px 0;
+        }
+        .reset-box .btn {
+            width: 47%;
         }
     </style>
 </head>
@@ -92,10 +126,47 @@
                 <button class="btn btn-entr" onclick="validateInput()">Enter</button>
             </div>
         </div>
+        <button type="button" class="btn btn-outline-dark btn-reset" id="openResetBtn">Reset Kuota</button>
         <div id="message" class="message"></div>
     </div>
 
+    <div class="overlay" id="resetOverlay">
+        <div class="reset-box">
+            <h5>Masukkan Password</h5>
+            <input type="password" class="form-control" id="resetPasswordInput" placeholder="Password">
+            <div>
+                <button type="button" class="btn btn-secondary" id="cancelResetBtn">Batal</button>
+                <button type="button" class="btn btn-primary" id="confirmResetBtn">Reset</button>
+            </div>
+        </div>
+    </div>
+
     <script>
+        var validNumbers = [651, 434, 494, 546, 514, 615, 566, 469, 536, 714]; // Daftar angka valid
+        var maxQuota = 2; // batas maksimal pemakaian per angka
+        var resetPassword = "123";
+
+        // Kunci penyimpanan di localStorage, supaya kuota tetap tersimpan walau halaman di-refresh
+        var STORAGE_KEY = 'inputValidationQuota';
+
+        function loadUsage() {
+            var stored = localStorage.getItem(STORAGE_KEY);
+            if (stored) {
+                try {
+                    return JSON.parse(stored);
+                } catch (e) {
+                    return {};
+                }
+            }
+            return {};
+        }
+
+        function saveUsage(usage) {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(usage));
+        }
+
+        var usageCount = loadUsage();
+
         function appendNumber(number) {
             var input = document.getElementById('userInput');
             input.value += number;
@@ -113,21 +184,31 @@
             input.value = '';
         }
 
+        function showMessage(text, cssClass, hideAfterMs) {
+            var messageDiv = document.getElementById('message');
+            messageDiv.textContent = text;
+            messageDiv.className = 'message ' + cssClass;
+            messageDiv.style.display = 'block';
+            setTimeout(clearInputAll, hideAfterMs);
+        }
+
         function validateInput() {
             var input = document.getElementById('userInput').value;
-            var messageDiv = document.getElementById('message');
-            var validNumbers = [651, 434, 494, 546, 514, 615, 566, 469, 536, 714]; // Daftar angka valid
+            var number = parseFloat(input);
 
-            if (validNumbers.includes(parseFloat(input))) {
-                messageDiv.textContent = 'Kamu berhasil';
-                messageDiv.className = 'message success';
-                messageDiv.style.display = 'block';
-                setTimeout(clearInputAll, 5500);
+            if (validNumbers.includes(number)) {
+                var used = usageCount[number] || 0;
+
+                if (used >= maxQuota) {
+                    showMessage('Jawaban Melebihi Kuota', 'error', 3000);
+                    return;
+                }
+
+                usageCount[number] = used + 1;
+                saveUsage(usageCount);
+                showMessage('Kamu berhasil', 'success', 5500);
             } else {
-                messageDiv.textContent = 'Coba lagi';
-                messageDiv.className = 'message error';
-                messageDiv.style.display = 'block';
-                setTimeout(clearInputAll, 3000);
+                showMessage('Coba lagi', 'error', 3000);
             }
         }
 
@@ -136,6 +217,43 @@
             var messageDiv = document.getElementById('message');
             messageDiv.style.display = 'none';
         }
+
+        function openResetOverlay() {
+            document.getElementById('resetPasswordInput').value = '';
+            document.getElementById('resetOverlay').classList.add('show');
+            document.getElementById('resetPasswordInput').focus();
+        }
+
+        function closeResetOverlay() {
+            document.getElementById('resetOverlay').classList.remove('show');
+        }
+
+        function confirmReset() {
+            var pwd = document.getElementById('resetPasswordInput').value;
+            if (pwd === resetPassword) {
+                usageCount = {};
+                saveUsage(usageCount);
+                clearInput();
+                closeResetOverlay();
+                showMessage('Kuota berhasil direset', 'success', 2500);
+            } else {
+                closeResetOverlay();
+                showMessage('Password salah', 'error', 2500);
+            }
+        }
+
+        // Pasang event listener setelah halaman siap
+        document.addEventListener('DOMContentLoaded', function () {
+            document.getElementById('openResetBtn').addEventListener('click', openResetOverlay);
+            document.getElementById('cancelResetBtn').addEventListener('click', closeResetOverlay);
+            document.getElementById('confirmResetBtn').addEventListener('click', confirmReset);
+            // Tekan Enter di kotak password juga langsung reset
+            document.getElementById('resetPasswordInput').addEventListener('keyup', function (e) {
+                if (e.key === 'Enter') {
+                    confirmReset();
+                }
+            });
+        });
     </script>
 </body>
 </html>
